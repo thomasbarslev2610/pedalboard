@@ -1,10 +1,12 @@
 #include <Arduino.h>
-#include <MIDI.h>
 #include "webserver.h"
 #include "spiffshandler.h"
 #include "settingshandler.h"
 #include <ArduinoJson.h>
-
+#include "midi.h"
+#include "switches.h"
+#include "configurationhandler.h"
+#include "settings.h"
 /*
 Bank Down   CC22
 Bank Up     CC23
@@ -28,14 +30,21 @@ Display
 */
 
 
-//MIDI_CREATE_DEFAULT_INSTANCE();
+ 
+  char* CONFIGURATION_JSON_FILE = ""; 
+  JsonDocument configuration;
+  int SWITCH1CC_VALUE = 0;
+  int SWITCH2CC_VALUE = 0;
+  int SWITCH3CC_VALUE = 0;
+  int SWITCH4CC_VALUE = 0;
+  int SWITCH5CC_VALUE = 0;
+
 
 TaskHandle_t Task0;
 void Task0code( void * parameter) {
   Serial.println("Task 0");
-  
+
   setupwebServer();
-  
   while (true) {
     //delay(500);
     //Code for task 1 - infinite loop
@@ -49,52 +58,25 @@ void Task0code( void * parameter) {
 
 
 
-void getConfigurationJSON()
-{
-    
-    String configuration = getSetting(CONFIGURATION_JSON_FILE);
-    DynamicJsonDocument  doc(256);
-     // Deserialize the JSON document
-    DeserializationError error = deserializeJson(doc, configuration.c_str());
-
-    // Test if parsing succeeds.
-    if (error) {
-        Serial.print(F("deserializeJson() failed in getConfigurationJSON(): "));
-        Serial.println(error.f_str());
-        return;
-    }
-
-    
-
-    for (int i=0; i<5; i++)
-    {
-    
-      String switchsetting = doc[String("switches")][i];
-      Serial.println(switchsetting);
-      
-      String switchName = "switch";
-      switchName.concat(i+1);
-      switchName.concat("cc");
-      Serial.println(switchName);
-      String switchValueString = doc[String("switches")][i][switchName];
-      int switchValueInt = switchValueString.toInt();
-      //int value = setting["switch1"];
-      Serial.println(switchValueInt);
-      
-      }
-    Serial.println("Done, GetConfigurationJSON");
-       
-}
 // put function definitions here:
 int myFunction(int x, int y) {
   return x + y;
 }
 
+
 void setup() {
-  
   Serial.begin(115200);
   setupSpiffs();
-  getConfigurationJSON();
+  CONFIGURATION_JSON_FILE = "/configuration.json"; 
+  configuration = getConfigurationJSON(CONFIGURATION_JSON_FILE); 
+  SWITCH1CC_VALUE = configuration["switches"][0]["switch1cc"];
+  SWITCH2CC_VALUE = configuration["switches"][1]["switch2cc"];
+  SWITCH3CC_VALUE = configuration["switches"][2]["switch3cc"];
+  SWITCH4CC_VALUE = configuration["switches"][3]["switch4cc"];
+  SWITCH5CC_VALUE = configuration["switches"][4]["switch5cc"];  
+
+
+
     xTaskCreatePinnedToCore(
       Task0code, /* Function to implement the task */
       "Task0", /* Name of the task */
@@ -106,10 +88,9 @@ void setup() {
 
   // put your setup code here, to run once:
   //int result = myFunction(2, 3);
-  //MIDI.begin();
-  //MIDI.sendControlChange(21,127,1);
   
- 
+  setupMidi();
+  setupSwitches();
   Serial.println("Setup done");
   
 }
@@ -119,6 +100,8 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  readSwitches();
+
 }
 
 
